@@ -23,7 +23,7 @@ WORKDIR /app
 
 # Install runtime dependencies for sharp (HEIC/libvips) and audio processing
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libvips-dev \
+    libvips \
     ffmpeg \
     audiowaveform \
     && rm -rf /var/lib/apt/lists/* \

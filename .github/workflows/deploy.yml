@@ -7,7 +7,7 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: europe-west1
+  REGION: europe-west3
   SERVICE_NAME: media-service
   REPOSITORY: media-service
   IMAGE_NAME: media-service
@@ -19,6 +19,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        env:
+          NODE_ENV: test
+          SERVICE_API_KEY: test-key
+          CORS_ALLOWED_ORIGINS: https://example.com
+        run: npm test
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
