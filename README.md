@@ -32,32 +32,37 @@ sudo apt-get install audiowaveform
 
 **From source:** See [audiowaveform GitHub](https://github.com/bbc/audiowaveform)
 
-## Installation
-
-```bash
-npm install
-```
-
-## Build
-
-```bash
-npm run build
-```
-
-## Run Locally
-
-```bash
-export SERVICE_API_KEY=your-secret-key
-npm start
-```
-
-The service starts on port 8080 by default (configurable via `PORT` environment variable).
-
 ## API
 
 ### Authentication
 
 All endpoints require the `X-Api-Key` header with a valid API key matching the `SERVICE_API_KEY` environment variable.
+
+### Debug Output
+
+Add a `debug` query parameter with one of: `debug`, `info`, `warn`, `error`, `crit`.
+
+- `POST /image/convert?debug=info` returns image bytes and debug info via headers:
+  - `X-Request-Id`
+  - `X-Debug-Level`
+  - `X-Processing-Time-Ms`
+  - `X-Debug-Info` (base64 JSON)
+- `POST /audio/peaks?debug=info` includes a `debug` field in the JSON response.
+- Errors include a `debug` field when debug is requested.
+
+Decode the image debug header (browser):
+```ts
+const debugHeader = res.headers.get('X-Debug-Info');
+const debug = debugHeader ? JSON.parse(atob(debugHeader)) : null;
+```
+
+Decode the image debug header (Node):
+```ts
+const debugHeader = res.headers.get('X-Debug-Info');
+const debug = debugHeader
+  ? JSON.parse(Buffer.from(debugHeader, 'base64').toString('utf8'))
+  : null;
+```
 
 ### Endpoints
 
@@ -140,35 +145,12 @@ curl -X POST "http://localhost:8080/audio/peaks?samples=500" \
 |----------|----------|-------------|
 | SERVICE_API_KEY | Yes | API key for authentication |
 | PORT | No | Server port (default: 8080) |
+| CORS_ALLOWED_ORIGINS | Yes | Comma-separated list of allowed origins (no wildcard) |
+| AUDIOWAVEFORM_TIMEOUT_MS | No | Timeout for audiowaveform in ms (default: 15000) |
 
-## Docker
+## Install on GCP (Cloud Run Only)
 
-The project uses a multi-stage Dockerfile for optimized production builds:
-
-- **Stage 1 (builder):** Compiles TypeScript using `node:20-bookworm`
-- **Stage 2 (production):** Minimal runtime image with `node:20-bookworm-slim`
-
-Build locally:
-```bash
-docker build -t media-service .
-docker run -p 8080:8080 -e SERVICE_API_KEY=your-secret-key media-service
-```
-
-## Deploy to Google Cloud Run
-
-### Automated Deployment (GitHub Actions)
-
-The repository includes a GitHub Actions workflow that automatically deploys to Cloud Run on pushes to `main`.
-
-**Required GitHub Secrets:**
-
-| Secret | Description |
-|--------|-------------|
-| `GCP_PROJECT_ID` | Your Google Cloud project ID |
-| `GCP_SA_KEY` | Service Account JSON key with Cloud Run and Artifact Registry permissions |
-| `SERVICE_API_KEY` | API key for the service authentication |
-
-**Required GCP Setup:**
+### 1) GCP Setup
 
 1. Create an Artifact Registry repository:
 ```bash
@@ -196,22 +178,122 @@ gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
 
 3. Generate and download the Service Account key, then add it as `GCP_SA_KEY` secret in GitHub.
 
-### Manual Deployment
+### 2) Configure GitHub Actions Secrets
 
-1. Build and push the container:
+Set these GitHub secrets:
+
+| Secret | Description |
+|--------|-------------|
+| `GCP_PROJECT_ID` | Your Google Cloud project ID |
+| `GCP_SA_KEY` | Service Account JSON key with Cloud Run and Artifact Registry permissions |
+| `SERVICE_API_KEY` | API key for the service authentication |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed origins for your Astro app |
+
+### 3) Deploy (Automated)
+
+Push to `main`. The workflow in `.github/workflows/deploy.yml` will build and deploy to Cloud Run.
+
+### 4) Verify
+
 ```bash
-gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/media-service
+curl -s https://YOUR_CLOUD_RUN_URL/health
 ```
 
-2. Deploy to Cloud Run:
+## Consume Securely from Astro on Cloudflare Pages
+
+**Goal:** Keep `SERVICE_API_KEY` off the client and enforce CORS for your Pages domain(s).
+
+### 1) Set Origins in Cloud Run
+
+Set `CORS_ALLOWED_ORIGINS` to your Cloudflare Pages domains:
+```
+https://your-site.pages.dev,https://your-branch.your-site.pages.dev,https://your-custom-domain.com
+```
+
+Common Cloudflare Pages patterns:
+- `https://<project>.pages.dev` (production)
+- `https://<branch>.<project>.pages.dev` (preview)
+- `https://your-custom-domain.com` (custom domain)
+
+Example:
+```
+https://delman.pages.dev,https://main.delman.pages.dev,https://delman.com
+```
+
+### 2) Proxy Requests Server-Side (Astro)
+
+Create an API route in your Astro project that proxies to Cloud Run and injects the API key from environment variables (never expose it to the client).
+
+Example `src/pages/api/media/image.ts`:
+```ts
+import type { APIRoute } from 'astro';
+
+export const POST: APIRoute = async ({ request }) => {
+  const url = new URL(request.url);
+  const target = new URL('https://YOUR_CLOUD_RUN_URL/image/convert');
+  target.search = url.search;
+
+  const res = await fetch(target, {
+    method: 'POST',
+    headers: {
+      'X-Api-Key': import.meta.env.SERVICE_API_KEY,
+    },
+    body: await request.formData(),
+  });
+
+  return new Response(await res.arrayBuffer(), {
+    status: res.status,
+    headers: {
+      'Content-Type': res.headers.get('Content-Type') || 'application/octet-stream',
+    },
+  });
+};
+```
+
+Example `src/pages/api/media/peaks.ts`:
+```ts
+import type { APIRoute } from 'astro';
+
+export const POST: APIRoute = async ({ request }) => {
+  const url = new URL(request.url);
+  const target = new URL('https://YOUR_CLOUD_RUN_URL/audio/peaks');
+  target.search = url.search;
+
+  const res = await fetch(target, {
+    method: 'POST',
+    headers: {
+      'X-Api-Key': import.meta.env.SERVICE_API_KEY,
+    },
+    body: await request.formData(),
+  });
+
+  return new Response(await res.text(), {
+    status: res.status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
+```
+
+### 3) Configure Astro Environment Variables
+
+In Cloudflare Pages:
+```
+SERVICE_API_KEY=your-secret-key
+```
+
+If you want to request debug output from the browser, pass `debug=info` (or another level) to your Astro proxy route:
+```
+POST /api/media/peaks?debug=info
+POST /api/media/image?debug=info
+```
+
+### 4) Call From Your Frontend
+
+Use your Astro API routes from the browser:
+
 ```bash
-gcloud run deploy media-service \
-  --image gcr.io/YOUR_PROJECT_ID/media-service \
-  --set-env-vars SERVICE_API_KEY=your-secret-key \
-  --allow-unauthenticated \
-  --memory 1Gi \
-  --cpu 1 \
-  --max-instances 5
+curl -X POST "https://your-site.pages.dev/api/media/peaks?samples=500" \
+  -F "audio=@song.mp3"
 ```
 
 ## Project Structure
