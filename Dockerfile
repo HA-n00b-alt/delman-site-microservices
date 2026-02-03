@@ -54,8 +54,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including devDependencies for build)
-RUN npm ci --foreground-scripts
+# Install deps without scripts so sharp does not run its check/build yet.
+# Then rebuild sharp only, so it builds against system libvips (HEIF) without
+# forcing other native deps to build from source.
+RUN npm ci --ignore-scripts \
+    && npm rebuild sharp --build-from-source
 
 # Copy source files
 COPY tsconfig.json ./
