@@ -50,6 +50,8 @@ WORKDIR /app
 # Install runtime dependencies for sharp (HEIC/libvips) and audio processing
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libvips \
+    libheif1 \
+    libde265-0 \
     ffmpeg \
     libmad0 \
     libid3tag0 \
