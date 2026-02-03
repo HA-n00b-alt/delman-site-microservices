@@ -20,7 +20,7 @@ RUN git clone https://github.com/bbc/audiowaveform.git --depth 1 \
     && cd audiowaveform \
     && mkdir build \
     && cd build \
-    && cmake .. \
+    && cmake -D ENABLE_TESTS=OFF .. \
     && make \
     && make install
 
