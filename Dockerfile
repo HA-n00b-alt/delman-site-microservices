@@ -29,36 +29,11 @@ FROM node:20-bullseye AS builder
 
 WORKDIR /app
 
-# Build sharp against system libvips with HEIF support.
-# Do not set npm_config_build_from_source globally or other native deps may fail.
-ENV SHARP_FORCE_GLOBAL_LIBVIPS=1
-ENV PYTHON=/usr/bin/python3
-ENV npm_config_python=/usr/bin/python3
-
-# Install build deps for sharp
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    python3-dev \
-    python3-distutils \
-    python3-setuptools \
-    python3-venv \
-    python-is-python3 \
-    build-essential \
-    pkg-config \
-    libvips-dev \
-    libheif-dev \
-    libde265-dev \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
-
-# Copy package files
+# Use sharp's prebuilt Linux binary (bundles libvips 8.17+ with HEIF).
+# Bullseye's system libvips is 8.10.x, which is too old for sharp 0.34.x.
 COPY package*.json ./
 
-# Install deps without scripts so sharp does not run its check/build yet.
-# Then rebuild sharp only, so it builds against system libvips (HEIF) without
-# forcing other native deps to build from source.
-RUN npm ci --ignore-scripts \
-    && npm rebuild sharp --build-from-source
+RUN npm ci
 
 # Copy source files
 COPY tsconfig.json ./
@@ -75,12 +50,9 @@ FROM node:20-bullseye-slim AS production
 
 WORKDIR /app
 
-# Install runtime dependencies for sharp (HEIC/libvips) and audio processing
-# Note: libheif-plugin-libde265 is not in Bullseye; libheif1 depends on libde265-0 for HEIC
+# Install runtime dependencies for audio processing (audiowaveform, ffmpeg).
+# sharp uses its prebuilt binary and bundled libvips (HEIF supported).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libvips \
-    libheif1 \
-    libde265-0 \
     ffmpeg \
     libmad0 \
     libid3tag0 \
