@@ -1,5 +1,5 @@
 # Stage 1: Build
-FROM node:20-bookworm AS builder
+FROM node:20-bullseye AS builder
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ COPY src ./src
 RUN npm run build
 
 # Stage 2: Production
-FROM node:20-bookworm-slim AS production
+FROM node:20-bullseye-slim AS production
 
 WORKDIR /app
 
