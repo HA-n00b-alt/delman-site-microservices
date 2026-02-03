@@ -29,6 +29,22 @@ FROM node:20-bullseye AS builder
 
 WORKDIR /app
 
+# Build sharp against system libvips with HEIF support
+ENV SHARP_FORCE_GLOBAL_LIBVIPS=1
+ENV npm_config_build_from_source=true
+
+# Install build deps for sharp
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    pkg-config \
+    libvips-dev \
+    libheif-dev \
+    libde265-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
 # Copy package files
 COPY package*.json ./
 
@@ -41,6 +57,9 @@ COPY src ./src
 
 # Build TypeScript
 RUN npm run build
+
+# Remove dev dependencies for production copy
+RUN npm prune --omit=dev
 
 # Stage 3: Production
 FROM node:20-bullseye-slim AS production
@@ -72,8 +91,8 @@ ENV NODE_ENV=production
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --omit=dev && npm cache clean --force
+# Copy production dependencies from builder (already pruned)
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
