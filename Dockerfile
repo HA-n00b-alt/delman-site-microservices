@@ -32,14 +32,18 @@ WORKDIR /app
 # Build sharp against system libvips with HEIF support
 ENV SHARP_FORCE_GLOBAL_LIBVIPS=1
 ENV npm_config_build_from_source=true
+ENV npm_config_loglevel=verbose
 ENV PYTHON=/usr/bin/python3
 ENV npm_config_python=/usr/bin/python3
 
 # Install build deps for sharp
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
+    python3-dev \
     python3-distutils \
     python3-setuptools \
+    python3-venv \
+    python-is-python3 \
     build-essential \
     pkg-config \
     libvips-dev \
@@ -52,7 +56,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY package*.json ./
 
 # Install all dependencies (including devDependencies for build)
-RUN npm ci
+RUN npm ci --foreground-scripts
 
 # Copy source files
 COPY tsconfig.json ./
@@ -73,6 +77,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libvips \
     libheif1 \
+    libheif-plugin-libde265 \
     libde265-0 \
     ffmpeg \
     libmad0 \
