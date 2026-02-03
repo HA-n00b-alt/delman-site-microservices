@@ -74,10 +74,10 @@ FROM node:20-bullseye-slim AS production
 WORKDIR /app
 
 # Install runtime dependencies for sharp (HEIC/libvips) and audio processing
+# Note: libheif-plugin-libde265 is not in Bullseye; libheif1 depends on libde265-0 for HEIC
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libvips \
     libheif1 \
-    libheif-plugin-libde265 \
     libde265-0 \
     ffmpeg \
     libmad0 \
