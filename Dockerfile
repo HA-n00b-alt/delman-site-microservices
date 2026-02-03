@@ -32,12 +32,15 @@ WORKDIR /app
 # Build sharp against system libvips with HEIF support
 ENV SHARP_FORCE_GLOBAL_LIBVIPS=1
 ENV npm_config_build_from_source=true
+ENV PYTHON=/usr/bin/python3
+ENV npm_config_python=/usr/bin/python3
 
 # Install build deps for sharp
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
-    make \
-    g++ \
+    python3-distutils \
+    python3-setuptools \
+    build-essential \
     pkg-config \
     libvips-dev \
     libheif-dev \
