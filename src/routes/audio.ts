@@ -418,7 +418,7 @@ router.post(
       }
 
       const archive = archiver('zip', { zlib: { level: 9 } });
-      archive.on('error', (err) => {
+      archive.on('error', (err: unknown) => {
         logger.error({ requestId, err }, 'Zip archive error');
         if (!res.headersSent) {
           res.status(500).json({ error: 'Failed to create zip', debug: debugInfo });
