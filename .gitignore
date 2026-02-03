@@ -4,5 +4,3 @@ dist/
 *.log
 .DS_Store
 secrets/
-secrets/
-secrets/
