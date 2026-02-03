@@ -29,10 +29,9 @@ FROM node:20-bullseye AS builder
 
 WORKDIR /app
 
-# Build sharp against system libvips with HEIF support
+# Build sharp against system libvips with HEIF support.
+# Do not set npm_config_build_from_source globally or other native deps may fail.
 ENV SHARP_FORCE_GLOBAL_LIBVIPS=1
-ENV npm_config_build_from_source=true
-ENV npm_config_loglevel=verbose
 ENV PYTHON=/usr/bin/python3
 ENV npm_config_python=/usr/bin/python3
 
