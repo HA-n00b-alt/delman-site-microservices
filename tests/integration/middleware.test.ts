@@ -1,12 +1,28 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import http from 'http';
 import request from 'supertest';
 import { app } from '../../src/index';
 
 const API_KEY = 'test-api-key';
 
+let server: http.Server;
+
+beforeAll(() => {
+  return new Promise<void>((resolve) => {
+    server = http.createServer(app);
+    server.listen(0, () => resolve());
+  });
+});
+
+afterAll(() => {
+  return new Promise<void>((resolve) => {
+    server.close(() => resolve());
+  });
+});
+
 describe('CORS Middleware', () => {
   it('should allow requests without Origin header (non-browser clients)', async () => {
-    const response = await request(app)
+    const response = await request(server)
       .get('/health');
 
     // Health endpoint returns 200 (ok) or 503 (degraded) depending on audiowaveform availability
@@ -15,7 +31,7 @@ describe('CORS Middleware', () => {
   });
 
   it('should allow requests with valid Origin header', async () => {
-    const response = await request(app)
+    const response = await request(server)
       .get('/health')
       .set('Origin', 'http://localhost:3000');
 
@@ -25,7 +41,7 @@ describe('CORS Middleware', () => {
   });
 
   it('should reject requests with invalid Origin header', async () => {
-    const response = await request(app)
+    const response = await request(server)
       .get('/health')
       .set('Origin', 'http://malicious-site.com');
 
@@ -35,7 +51,7 @@ describe('CORS Middleware', () => {
   });
 
   it('should handle preflight OPTIONS requests for valid origins', async () => {
-    const response = await request(app)
+    const response = await request(server)
       .options('/v1/image/convert')
       .set('Origin', 'http://localhost:3000')
       .set('Access-Control-Request-Method', 'POST')
@@ -51,7 +67,7 @@ describe('CORS Middleware', () => {
       'base64'
     );
 
-    const response = await request(app)
+    const response = await request(server)
       .post('/v1/image/convert')
       .set('X-Api-Key', API_KEY)
       .set('Origin', 'http://localhost:3000')
@@ -67,7 +83,7 @@ describe('CORS Middleware', () => {
 
 describe('Rate Limiting Middleware', () => {
   it('should include rate limit headers in response', async () => {
-    const response = await request(app).get('/health');
+    const response = await request(server).get('/health');
 
     // Health endpoint returns 200 (ok) or 503 (degraded) depending on audiowaveform availability
     expect([200, 503]).toContain(response.status);
@@ -78,7 +94,7 @@ describe('Rate Limiting Middleware', () => {
   it('should allow requests within rate limit', async () => {
     // Make a few requests, all should succeed
     for (let i = 0; i < 5; i++) {
-      const response = await request(app).get('/health');
+      const response = await request(server).get('/health');
       expect(response.status).not.toBe(429);
     }
   });
@@ -87,7 +103,7 @@ describe('Rate Limiting Middleware', () => {
 describe('Environment Configuration', () => {
   it('should have validated environment variables', async () => {
     // The app should start successfully with valid env vars
-    const response = await request(app).get('/health');
+    const response = await request(server).get('/health');
     expect([200, 503]).toContain(response.status);
   });
 });

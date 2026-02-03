@@ -53,25 +53,26 @@ app.use(audioRouter);
 app.use(notFoundHandler);
 app.use(globalErrorHandler);
 
-// Start server
-const server = app.listen(env.PORT, () => {
-  logger.info({ port: env.PORT }, 'Media processing service started');
-});
-
-// Graceful shutdown
-const shutdown = (signal: NodeJS.Signals) => {
-  logger.info({ signal }, 'Shutting down');
-  server.close(() => {
-    logger.info('Server closed');
-    process.exit(0);
+// Start server only when run directly (not when imported by tests)
+if (env.NODE_ENV !== 'test') {
+  const server = app.listen(env.PORT, () => {
+    logger.info({ port: env.PORT }, 'Media processing service started');
   });
-  setTimeout(() => {
-    logger.error('Force shutdown after timeout');
-    process.exit(1);
-  }, 10000).unref();
-};
 
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+  const shutdown = (signal: NodeJS.Signals) => {
+    logger.info({ signal }, 'Shutting down');
+    server.close(() => {
+      logger.info('Server closed');
+      process.exit(0);
+    });
+    setTimeout(() => {
+      logger.error('Force shutdown after timeout');
+      process.exit(1);
+    }, 10000).unref();
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+}
 
 export { app };

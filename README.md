@@ -18,7 +18,7 @@ A Node.js Express microservice for image conversion and audio processing, design
   - OpenAPI/Swagger documentation at `/api-docs`
   - Structured JSON logging with Pino
   - Input validation with Zod schemas
-  - Comprehensive test suite (59 tests)
+  - Comprehensive test suite (81 tests: unit + integration)
 - **Production Ready**
   - API versioning (`/v1/` prefix)
   - Deep health checks
@@ -27,24 +27,20 @@ A Node.js Express microservice for image conversion and audio processing, design
 
 ## Prerequisites
 
-- Node.js 20+
-- npm
-- audiowaveform (for audio processing)
-- ffmpeg (for audio format support)
+- **Node.js 20+** and **npm**
+- For **local** audio processing (running the app outside Docker): **audiowaveform** and **ffmpeg**
 
-### Installing audiowaveform
+### Installing audiowaveform (local only)
 
 **macOS:**
 ```bash
 brew install audiowaveform
 ```
 
-**Ubuntu/Debian:**
-```bash
-sudo apt-get install audiowaveform
-```
-
+**Ubuntu/Debian:** Use your distro’s package manager or build from source.  
 **From source:** See [audiowaveform GitHub](https://github.com/bbc/audiowaveform)
+
+**Note:** The Docker image builds and includes audiowaveform, ffmpeg, and all image/audio dependencies (including HEIC/HEVC support). No local install needed when running via Docker.
 
 ## Quick Start
 
@@ -65,7 +61,7 @@ SERVICE_API_KEY=your-secret-key npm start
 # Watch mode (rebuild on changes)
 npm run dev
 
-# Run tests
+# Run tests (requires network for integration tests — server binds to a port)
 npm test
 
 # Run tests in watch mode
@@ -80,6 +76,15 @@ npm run lint
 # Type check without emitting
 npm run typecheck
 ```
+
+### Testing
+
+| What | Command | Notes |
+|------|---------|--------|
+| Unit + integration (Vitest) | `npm test` | Needs network (supertest binds a server). 81 tests. |
+| Live API (deployed service) | `./tests/test-api.sh` | Requires `SERVICE_API_KEY` in `.env` or environment. Optionally set `BASE_URL` (default in script). |
+
+**Live script** exercises: auth (401), health, image convert (HEIC→webp), audio peaks, image batch (zip), audio batch (zip). Ensure `tests/data/` contains the sample HEIC and audio files referenced in the script.
 
 ## API Documentation
 
@@ -219,14 +224,7 @@ Submit a batch of images and receive a single ZIP with multiple variants per ima
 }
 ```
 
-**Response:** ZIP archive with paths like:
-```
-images/<baseName>/<variantName>
-```
-
-The ZIP also includes `manifest.json` (the request manifest) and, if `debug` is set, `debug.json`.
-
-If `debug` is set, the ZIP includes `debug.json`.
+**Response:** ZIP archive with paths like `images/<baseName>/<variantName>`. The ZIP includes `manifest.json` (the request manifest) and, if `debug` is set, `debug.json`.
 
 **Example:**
 ```bash
@@ -322,17 +320,40 @@ curl -X POST "http://localhost:8080/v1/audio/peaks/batch?debug=info" \
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | SERVICE_API_KEY | Yes | - | API key for authentication |
-| PORT | No | 8080 | Server port |
-| CORS_ALLOWED_ORIGINS | Yes | - | Comma-separated list of allowed origins (no wildcard) |
+| PORT | No | 8080 | Server port (Cloud Run sets `PORT`) |
+| CORS_ALLOWED_ORIGINS | Yes (prod) | - | Comma-separated list of allowed origins (no wildcard). Refuses start in production if unset. |
+| RATE_LIMIT_WINDOW_MS | No | 60000 | Global rate limit window in ms |
+| RATE_LIMIT_MAX_REQUESTS | No | 100 | Max requests per window (global) |
+| MEDIA_RATE_LIMIT_MAX_REQUESTS | No | 30 | Max requests per window for media endpoints |
 | AUDIOWAVEFORM_TIMEOUT_MS | No | 15000 | Timeout for audiowaveform in ms |
 | AUDIO_DURATION_TIMEOUT_MS | No | 5000 | Timeout for ffprobe duration lookup in ms |
-| LOG_LEVEL | No | info | Logging level: `debug`, `info`, `warn`, `error` |
+| LOG_LEVEL | No | info | Logging level: `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
 | MAX_IMAGE_BATCH_FILES | No | 15 | Max number of images in a batch |
 | MAX_IMAGE_VARIANTS_PER_FILE | No | 12 | Max variants per image |
 | MAX_AUDIO_BATCH_FILES | No | 3 | Max number of audio files in a batch |
 | MAX_AUDIO_VARIANTS_PER_FILE | No | 4 | Max variants per audio file |
 
 In production, the service refuses to start if `CORS_ALLOWED_ORIGINS` is empty.
+
+## Docker
+
+The image is multi-stage: builds audiowaveform and the Node app, then produces a slim production image.
+
+- **Base:** Debian Trixie (`node:trixie` / `node:trixie-slim`) for **libvips 8.16+** and **libheif with HEVC** (libde265), so **HEIC from iPhones** (HEVC-compressed) is supported.
+- **Sharp** is pinned to **0.33.x** and built against system libvips (`SHARP_FORCE_GLOBAL_LIBVIPS=1`). Newer sharp (0.34+) requires libvips 8.17.3+, which is not in current Debian stable/Trixie packages.
+- **Production image** includes: Node runtime, sharp (system libvips + libheif/libde265), ffmpeg, audiowaveform binary, and runtime libs for audio (libmad, libsndfile, libgd, libboost).
+
+**Build and run locally:**
+
+```bash
+docker build -t media-service .
+docker run --rm -p 8080:8080 \
+  -e SERVICE_API_KEY=your-key \
+  -e CORS_ALLOWED_ORIGINS=https://your-site.com \
+  media-service
+```
+
+**Verify:** `curl -s http://localhost:8080/health`
 
 ## Install on GCP (Cloud Run Only)
 
@@ -377,12 +398,21 @@ Set these GitHub secrets:
 
 ### 3) Deploy (Automated)
 
-Push to `main`. The workflow in `.github/workflows/deploy.yml` will build and deploy to Cloud Run.
+Push to `main`. The workflow in `.github/workflows/deploy.yml` builds the Docker image and deploys to Cloud Run.
+
+- **Redeploy:** Push to `main` (or trigger the workflow). The built image includes HEIC/HEVC support (Trixie + sharp 0.33.x + system libvips). No further code changes are required for this to be final.
+- **After deploy:** Run `./tests/test-api.sh` with `BASE_URL` and `SERVICE_API_KEY` to smoke-test the live service.
 
 ### 4) Verify
 
 ```bash
 curl -s https://YOUR_CLOUD_RUN_URL/health
+```
+
+Optional full smoke test against the deployed URL:
+
+```bash
+BASE_URL=https://YOUR_CLOUD_RUN_URL SERVICE_API_KEY=your-key ./tests/test-api.sh
 ```
 
 ## Consume Securely from Astro on Cloudflare Pages
@@ -523,12 +553,16 @@ await pipeline(
 │       ├── debug.ts          # Debug utilities
 │       └── logger.ts         # Pino logger configuration
 ├── tests/
-│   ├── setup.ts              # Test setup
+│   ├── setup.ts              # Test env (NODE_ENV=test, SERVICE_API_KEY, CORS)
+│   ├── test-api.sh           # Live API smoke test (deployed service)
+│   ├── data/                 # Sample HEIC and audio files for test-api.sh
 │   ├── integration/
-│   │   └── api.test.ts       # API integration tests
+│   │   ├── api.test.ts       # API integration tests (all endpoints + legacy)
+│   │   └── middleware.test.ts # CORS and rate limit tests
 │   └── unit/
 │       ├── audio.test.ts     # Audio utility tests
-│       ├── debug.test.ts     # Debug utility tests
+│       ├── debug.test.ts     # Debug encoding/parsing tests
+│       ├── env.test.ts       # Env validation tests
 │       └── types.test.ts     # Zod schema tests
 ├── dist/                     # Compiled JavaScript (generated)
 ├── Dockerfile                # Container configuration
