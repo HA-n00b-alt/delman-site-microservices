@@ -12,6 +12,7 @@ import { notFoundHandler, globalErrorHandler } from './middleware/errorHandler';
 import healthRouter from './routes/health';
 import imageRouter from './routes/image';
 import audioRouter from './routes/audio';
+import odesliRouter from './routes/odesli';
 
 const app = express();
 
@@ -43,11 +44,13 @@ app.use('/v1', apiKeyMiddleware);
 // API v1 routes
 app.use('/v1', imageRouter);
 app.use('/v1', audioRouter);
+app.use('/v1', odesliRouter);
 
 // Legacy routes (for backward compatibility, will be deprecated)
 app.use(apiKeyMiddleware);
 app.use(imageRouter);
 app.use(audioRouter);
+app.use(odesliRouter);
 
 // Error handlers
 app.use(notFoundHandler);

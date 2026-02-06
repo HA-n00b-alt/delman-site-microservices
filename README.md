@@ -10,6 +10,8 @@ A Node.js Express microservice for image conversion and audio processing, design
   - Resize images with configurable dimensions and fit modes
 - **Audio Processing**
   - Extract audio waveform peaks for visualization
+- **Odesli (Songlink)**
+  - Query Odesli API with a Spotify or other music link; returns universal links response (no API key required for Odesli)
 - **Security**
   - API key authentication (timing-safe comparison)
   - CORS validation with explicit origin whitelist
@@ -18,7 +20,7 @@ A Node.js Express microservice for image conversion and audio processing, design
   - OpenAPI/Swagger documentation at `/api-docs`
   - Structured JSON logging with Pino
   - Input validation with Zod schemas
-  - Comprehensive test suite (81 tests: unit + integration)
+  - Comprehensive test suite (84 tests: unit + integration)
 - **Production Ready**
   - API versioning (`/v1/` prefix)
   - Deep health checks
@@ -81,10 +83,10 @@ npm run typecheck
 
 | What | Command | Notes |
 |------|---------|--------|
-| Unit + integration (Vitest) | `npm test` | Needs network (supertest binds a server). 81 tests. |
+| Unit + integration (Vitest) | `npm test` | Needs network (supertest binds a server). 84 tests. |
 | Live API (deployed service) | `./tests/test-api.sh` | Requires `SERVICE_API_KEY` in `.env` or environment. Optionally set `BASE_URL` (default in script). |
 
-**Live script** exercises: auth (401), health, image convert (HEIC→webp), audio peaks, image batch (zip), audio batch (zip). Ensure `tests/data/` contains the sample HEIC and audio files referenced in the script.
+**Live script** exercises: auth (401), health, image convert (HEIC→webp), audio peaks, image batch (zip), audio batch (zip). Optionally add Odesli to the script. Ensure `tests/data/` contains the sample HEIC and audio files referenced in the script.
 
 ## API Documentation
 
@@ -92,7 +94,7 @@ Interactive API documentation is available at `/api-docs` when the server is run
 
 OpenAPI spec JSON is available at `/api-docs.json`.
 
-The OpenAPI docs include the batch endpoints (`/v1/image/batch`, `/v1/audio/peaks/batch`) and their multipart manifest requirements.
+The OpenAPI docs include the batch endpoints (`/v1/image/batch`, `/v1/audio/peaks/batch`), the Odesli endpoint (`/v1/odesli`), and multipart manifest requirements where applicable.
 
 ## API
 
@@ -113,6 +115,7 @@ All endpoints (except `/health` and `/api-docs`) require the `X-Api-Key` header 
 |---------------|-------|
 | Global | 100 requests/minute |
 | Media processing (`/image/convert`, `/audio/peaks`) | 30 requests/minute |
+| Odesli (`/odesli`) | Global (100 requests/minute) |
 
 Note: rate limiting uses an in-memory store. With multiple Cloud Run instances, effective limits scale with instance count. For strict global limits, use a shared store (e.g., Redis) or lower per-instance limits.
 
@@ -315,6 +318,29 @@ curl -X POST "http://localhost:8080/v1/audio/peaks/batch?debug=info" \
   --output audio-peaks.zip
 ```
 
+#### `GET /v1/odesli`
+
+Query the [Odesli (Songlink) API](https://linktree.notion.site/API-d0ebe08a5e304a55928405eb682f6741) with a music URL (e.g. Spotify track/album/artist) and return the universal links response (links to the same content on multiple platforms). Odesli does not issue API keys; the API is called without authentication.
+
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| url | string | Yes | Full music URL (Spotify, Apple Music, Deezer, Tidal, YouTube, SoundCloud, Amazon Music, or song.link/odesli.co) |
+
+**Response:** JSON from Odesli (e.g. `entityByUniqueId`, `linksByPlatform`, `pageUrl`).
+
+**Example:**
+```bash
+curl -s "http://localhost:8080/v1/odesli?url=https://open.spotify.com/track/1GZH9Sv6zCIse2GKihRHKy" \
+  -H "X-Api-Key: your-secret-key"
+```
+
+| Status Code | Meaning |
+|-------------|---------|
+| 200 | Odesli response returned |
+| 400 | Missing or invalid `url` (not a supported music link) |
+| 502 | Odesli API error or unreachable |
+
 ## Environment Variables
 
 | Variable | Required | Default | Description |
@@ -332,6 +358,7 @@ curl -X POST "http://localhost:8080/v1/audio/peaks/batch?debug=info" \
 | MAX_IMAGE_VARIANTS_PER_FILE | No | 12 | Max variants per image |
 | MAX_AUDIO_BATCH_FILES | No | 3 | Max number of audio files in a batch |
 | MAX_AUDIO_VARIANTS_PER_FILE | No | 4 | Max variants per audio file |
+| ODESLI_API_BASE_URL | No | https://api.song.link | Odesli API base URL (used without API key) |
 
 In production, the service refuses to start if `CORS_ALLOWED_ORIGINS` is empty.
 
@@ -544,7 +571,8 @@ await pipeline(
 │   ├── routes/
 │   │   ├── audio.ts          # Audio peaks endpoint
 │   │   ├── health.ts         # Health check endpoint
-│   │   └── image.ts          # Image conversion endpoint
+│   │   ├── image.ts          # Image conversion endpoint
+│   │   └── odesli.ts         # Odesli (Songlink) music link proxy
 │   ├── types/
 │   │   └── index.ts          # Type definitions & Zod schemas
 │   └── utils/

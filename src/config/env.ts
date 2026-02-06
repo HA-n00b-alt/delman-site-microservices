@@ -26,6 +26,9 @@ const envSchema = z.object({
   AUDIOWAVEFORM_PIXELS_PER_SECOND: z.coerce.number().int().positive().default(10),
   AUDIOWAVEFORM_BITS: z.coerce.number().int().min(8).max(16).default(8),
 
+  // Odesli (Songlink) – music link conversion (no API key; see https://linktree.notion.site/API-d0ebe08a5e304a55928405eb682f6741)
+  ODESLI_API_BASE_URL: z.string().url().default('https://api.song.link'),
+
   // Logging
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });

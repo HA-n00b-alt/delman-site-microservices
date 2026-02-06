@@ -81,6 +81,7 @@ const options: swaggerJsdoc.Options = {
       { name: 'Health', description: 'Health check endpoints' },
       { name: 'Image', description: 'Image conversion endpoints' },
       { name: 'Audio', description: 'Audio processing endpoints' },
+      { name: 'Odesli', description: 'Odesli (Songlink) music link conversion' },
     ],
   },
   apis: ['./src/routes/*.ts', './dist/routes/*.js'],

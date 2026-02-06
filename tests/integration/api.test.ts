@@ -276,6 +276,31 @@ describe('Legacy Routes (Backward Compatibility)', () => {
   });
 });
 
+describe('Odesli Endpoint', () => {
+  it('GET /v1/odesli should require API key', async () => {
+    const response = await request(server).get(
+      '/v1/odesli?url=https://open.spotify.com/track/1GZH9Sv6zCIse2GKihRHKy'
+    );
+    expect(response.status).toBe(401);
+  });
+
+  it('GET /v1/odesli should return 400 when url is missing', async () => {
+    const response = await request(server)
+      .get('/v1/odesli')
+      .set('X-Api-Key', API_KEY);
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/Missing|invalid/i);
+  });
+
+  it('GET /v1/odesli should return 400 when url is not a music link', async () => {
+    const response = await request(server)
+      .get('/v1/odesli?url=https://example.com/not-music')
+      .set('X-Api-Key', API_KEY);
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/Invalid music link/i);
+  });
+});
+
 describe('404 Handler', () => {
   it('should return 404 for unknown routes', async () => {
     const response = await request(server)
