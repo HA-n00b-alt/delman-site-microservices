@@ -35,8 +35,6 @@ require_file() {
 }
 
 require_file "${IMAGE_1}"
-require_file "${IMAGE_2}"
-require_file "${IMAGE_3}"
 require_file "${MP3_1}"
 require_file "${M4A_1}"
 
@@ -92,90 +90,6 @@ if [[ "${audio_status}" != "200" ]]; then
   exit 1
 fi
 echo "OK: audio peaks"
-
-echo ""
-echo "5) Image batch (zip)"
-cat > "${TMP_DIR}/image-manifest.json" <<'EOF'
-{
-  "outputs": [
-    {
-      "file": "IMG_5777.HEIC",
-      "variants": [
-        { "format": "webp", "width": 1200, "height": 900, "fit": "cover" },
-        { "format": "avif", "width": 1200, "height": 900, "fit": "cover" },
-        { "format": "jpg", "width": 400, "height": 400, "fit": "cover", "name": "thumb_400.jpg" }
-      ]
-    }
-  ]
-}
-EOF
-
-image_batch_zip="${TMP_DIR}/images.zip"
-image_batch_status=$(curl -s -o "${image_batch_zip}" -w "%{http_code}" \
-  -H "X-Api-Key: ${SERVICE_API_KEY}" \
-  -F "images=@${IMAGE_1}" \
-  -F "manifest=@${TMP_DIR}/image-manifest.json" \
-  "${BASE_URL}/v1/image/batch?debug=info")
-if [[ "${image_batch_status}" != "200" ]]; then
-  echo "Image batch failed: ${image_batch_status}" >&2
-  [[ -s "${image_batch_zip}" ]] && cat "${image_batch_zip}" | head -c 1000 >&2
-  echo "" >&2
-  exit 1
-fi
-python - <<'PY'
-import sys, zipfile
-zf = zipfile.ZipFile(sys.argv[1])
-names = zf.namelist()
-assert any(n.endswith("manifest.json") for n in names), "manifest.json missing"
-assert any(n.endswith("debug.json") for n in names), "debug.json missing"
-assert any(n.endswith(".webp") for n in names), "webp missing"
-assert any(n.endswith(".avif") for n in names), "avif missing"
-assert any(n.endswith("thumb_400.jpg") for n in names), "thumb missing"
-print("OK: image batch zip")
-PY "${image_batch_zip}"
-
-echo ""
-echo "6) Audio batch (zip)"
-cat > "${TMP_DIR}/audio-manifest.json" <<'EOF'
-{
-  "outputs": [
-    {
-      "file": "Into dust master - v11 .mp3",
-      "variants": [
-        { "samplesPerMinute": 120 },
-        { "samplesPerMinute": 200, "name": "dense.json" }
-      ]
-    },
-    {
-      "file": "Koop Island Blues v20.m4a",
-      "variants": [
-        { "samplesPerMinute": 120 }
-      ]
-    }
-  ]
-}
-EOF
-
-audio_batch_zip="${TMP_DIR}/audio.zip"
-audio_batch_status=$(curl -s -o "${audio_batch_zip}" -w "%{http_code}" \
-  -H "X-Api-Key: ${SERVICE_API_KEY}" \
-  -F "audio=@${MP3_1}" \
-  -F "audio=@${M4A_1}" \
-  -F "manifest=@${TMP_DIR}/audio-manifest.json" \
-  "${BASE_URL}/v1/audio/peaks/batch?debug=info")
-if [[ "${audio_batch_status}" != "200" ]]; then
-  echo "Audio batch failed: ${audio_batch_status}" >&2
-  exit 1
-fi
-python - <<'PY'
-import sys, zipfile
-zf = zipfile.ZipFile(sys.argv[1])
-names = zf.namelist()
-assert any(n.endswith("manifest.json") for n in names), "manifest.json missing"
-assert any(n.endswith("debug.json") for n in names), "debug.json missing"
-assert any(n.endswith(".json") for n in names if "peaks/" in n), "peaks json missing"
-print("OK: audio batch zip")
-PY "${audio_batch_zip}"
 
 echo ""
 echo "All tests passed."

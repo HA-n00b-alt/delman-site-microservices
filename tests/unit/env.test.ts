@@ -10,14 +10,11 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60000),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(100),
   MEDIA_RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(30),
-  MAX_IMAGE_BATCH_FILES: z.coerce.number().int().positive().default(15),
-  MAX_IMAGE_VARIANTS_PER_FILE: z.coerce.number().int().positive().default(12),
-  MAX_AUDIO_BATCH_FILES: z.coerce.number().int().positive().default(3),
-  MAX_AUDIO_VARIANTS_PER_FILE: z.coerce.number().int().positive().default(4),
   AUDIOWAVEFORM_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
   AUDIO_DURATION_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   AUDIOWAVEFORM_PIXELS_PER_SECOND: z.coerce.number().int().positive().default(10),
   AUDIOWAVEFORM_BITS: z.coerce.number().int().min(8).max(16).default(8),
+  ODESLI_API_BASE_URL: z.string().url().default('https://api.song.link'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });
 
@@ -31,14 +28,11 @@ describe('Environment Schema Validation', () => {
     expect(result.RATE_LIMIT_WINDOW_MS).toBe(60000);
     expect(result.RATE_LIMIT_MAX_REQUESTS).toBe(100);
     expect(result.MEDIA_RATE_LIMIT_MAX_REQUESTS).toBe(30);
-    expect(result.MAX_IMAGE_BATCH_FILES).toBe(15);
-    expect(result.MAX_IMAGE_VARIANTS_PER_FILE).toBe(12);
-    expect(result.MAX_AUDIO_BATCH_FILES).toBe(3);
-    expect(result.MAX_AUDIO_VARIANTS_PER_FILE).toBe(4);
     expect(result.AUDIOWAVEFORM_TIMEOUT_MS).toBe(15000);
     expect(result.AUDIO_DURATION_TIMEOUT_MS).toBe(5000);
     expect(result.AUDIOWAVEFORM_PIXELS_PER_SECOND).toBe(10);
     expect(result.AUDIOWAVEFORM_BITS).toBe(8);
+    expect(result.ODESLI_API_BASE_URL).toBe('https://api.song.link');
     expect(result.LOG_LEVEL).toBe('info');
   });
 

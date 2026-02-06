@@ -80,55 +80,6 @@ export const audioPeaksQuerySchema = z.object({
 
 export type AudioPeaksQuery = z.infer<typeof audioPeaksQuerySchema>;
 
-// Batch manifests
-export const imageVariantSchema = z.object({
-  format: z
-    .string()
-    .transform((v) => v.toLowerCase())
-    .pipe(z.enum(SUPPORTED_IMAGE_FORMATS)),
-  width: z.coerce.number().int().positive().optional(),
-  height: z.coerce.number().int().positive().optional(),
-  fit: z
-    .string()
-    .transform((v) => v.toLowerCase())
-    .pipe(z.enum(VALID_FIT_OPTIONS))
-    .optional()
-    .default('cover'),
-  name: z.string().min(1).optional(),
-});
-
-export const imageBatchManifestSchema = z.object({
-  outputs: z
-    .array(
-      z.object({
-        file: z.string().min(1),
-        variants: z.array(imageVariantSchema).min(1),
-      })
-    )
-    .min(1),
-});
-
-export type ImageBatchManifest = z.infer<typeof imageBatchManifestSchema>;
-
-export const audioVariantSchema = z.object({
-  samples: z.coerce.number().int().min(1).max(10000).optional(),
-  samplesPerMinute: z.coerce.number().int().min(1).max(10000).optional(),
-  name: z.string().min(1).optional(),
-});
-
-export const audioBatchManifestSchema = z.object({
-  outputs: z
-    .array(
-      z.object({
-        file: z.string().min(1),
-        variants: z.array(audioVariantSchema).min(1),
-      })
-    )
-    .min(1),
-});
-
-export type AudioBatchManifest = z.infer<typeof audioBatchManifestSchema>;
-
 // Health check types
 export type HealthCheckResult = {
   status: 'ok' | 'degraded';
@@ -137,45 +88,4 @@ export type HealthCheckResult = {
     sharp: boolean;
   };
   uptime: number;
-};
-
-// Batch debug types
-export type ImageVariantDebug = {
-  name: string;
-  format: string;
-  width?: number;
-  height?: number;
-  fit: string;
-  outputBytes: number;
-  durationMs: number;
-};
-
-export type ImageFileDebug = {
-  file: string;
-  sizeBytes: number;
-  variants: ImageVariantDebug[];
-};
-
-export type ImageBatchDebugSummary = DebugInfo & {
-  files: ImageFileDebug[];
-};
-
-export type AudioVariantDebug = {
-  name: string;
-  samples: number;
-  samplesPerMinute: number;
-  durationMs: number;
-  peaksCount: number;
-};
-
-export type AudioFileDebug = {
-  file: string;
-  sizeBytes: number;
-  detectedFormat: string | null;
-  durationSeconds: number;
-  variants: AudioVariantDebug[];
-};
-
-export type AudioBatchDebugSummary = DebugInfo & {
-  files: AudioFileDebug[];
 };

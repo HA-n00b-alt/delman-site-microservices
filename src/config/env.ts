@@ -14,13 +14,7 @@ const envSchema = z.object({
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(100),
   MEDIA_RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(30),
 
-  // Image processing
-  MAX_IMAGE_BATCH_FILES: z.coerce.number().int().positive().default(15),
-  MAX_IMAGE_VARIANTS_PER_FILE: z.coerce.number().int().positive().default(12),
-
   // Audio processing
-  MAX_AUDIO_BATCH_FILES: z.coerce.number().int().positive().default(3),
-  MAX_AUDIO_VARIANTS_PER_FILE: z.coerce.number().int().positive().default(4),
   AUDIOWAVEFORM_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
   AUDIO_DURATION_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   AUDIOWAVEFORM_PIXELS_PER_SECOND: z.coerce.number().int().positive().default(10),

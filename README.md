@@ -20,7 +20,7 @@ A Node.js Express microservice for image conversion and audio processing, design
   - OpenAPI/Swagger documentation at `/api-docs`
   - Structured JSON logging with Pino
   - Input validation with Zod schemas
-  - Comprehensive test suite (84 tests: unit + integration)
+  - Comprehensive test suite (78 tests: unit + integration)
 - **Production Ready**
   - API versioning (`/v1/` prefix)
   - Deep health checks
@@ -83,10 +83,10 @@ npm run typecheck
 
 | What | Command | Notes |
 |------|---------|--------|
-| Unit + integration (Vitest) | `npm test` | Needs network (supertest binds a server). 84 tests. |
+| Unit + integration (Vitest) | `npm test` | Needs network (supertest binds a server). 78 tests. |
 | Live API (deployed service) | `./tests/test-api.sh` | Requires `SERVICE_API_KEY` in `.env` or environment. Optionally set `BASE_URL` (default in script). |
 
-**Live script** exercises: auth (401), health, image convert (HEIC→webp), audio peaks, image batch (zip), audio batch (zip). Optionally add Odesli to the script. Ensure `tests/data/` contains the sample HEIC and audio files referenced in the script.
+**Live script** exercises: auth (401), health, image convert (HEIC→webp), audio peaks. Ensure `tests/data/` contains the sample HEIC and audio files referenced in the script.
 
 ## API Documentation
 
@@ -94,7 +94,7 @@ Interactive API documentation is available at `/api-docs` when the server is run
 
 OpenAPI spec JSON is available at `/api-docs.json`.
 
-The OpenAPI docs include the batch endpoints (`/v1/image/batch`, `/v1/audio/peaks/batch`), the Odesli endpoint (`/v1/odesli`), and multipart manifest requirements where applicable.
+The OpenAPI docs include the image convert, audio peaks, and Odesli endpoints.
 
 ## API
 
@@ -129,7 +129,6 @@ Add a `debug` query parameter with one of: `debug`, `info`, `warn`, `error`, `cr
   - `X-Processing-Time-Ms`
   - `X-Debug-Info` (base64 JSON)
 - `POST /v1/audio/peaks?debug=info` includes a `debug` field in the JSON response.
-- Batch endpoints include `debug.json` inside the ZIP when `debug` is set.
 - Errors include a `debug` field when debug is requested.
 
 Decode the image debug header (browser):
@@ -199,45 +198,6 @@ curl -X POST "http://localhost:8080/v1/image/convert?format=webp&width=800&heigh
   --output output.webp
 ```
 
-#### `POST /v1/image/batch`
-
-Submit a batch of images and receive a single ZIP with multiple variants per image.
-
-**Content-Type:** `multipart/form-data`
-
-**Form Fields:**
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| images | files[] | Yes | Up to 15 images |
-| manifest | string | Yes | JSON manifest describing variants |
-
-**Manifest Example:**
-```json
-{
-  "outputs": [
-    {
-      "file": "IMG_0001.HEIC",
-      "variants": [
-        { "format": "webp", "width": 1600, "height": 1200, "fit": "cover" },
-        { "format": "avif", "width": 1600, "height": 1200, "fit": "cover" },
-        { "format": "jpg", "width": 400, "height": 400, "fit": "cover", "name": "thumb_400.jpg" }
-      ]
-    }
-  ]
-}
-```
-
-**Response:** ZIP archive with paths like `images/<baseName>/<variantName>`. The ZIP includes `manifest.json` (the request manifest) and, if `debug` is set, `debug.json`.
-
-**Example:**
-```bash
-curl -X POST "http://localhost:8080/v1/image/batch?debug=info" \
-  -H "X-Api-Key: your-secret-key" \
-  -F "images=@IMG_0001.HEIC" \
-  -F "manifest=@manifest.json" \
-  --output images.zip
-```
-
 #### `POST /v1/audio/peaks`
 
 Extract waveform peaks from an audio file for visualization.
@@ -273,49 +233,6 @@ The `peaks` array contains floating-point numbers between 0 and 1, representing 
 curl -X POST "http://localhost:8080/v1/audio/peaks?samples=500" \
   -H "X-Api-Key: your-secret-key" \
   -F "audio=@song.mp3"
-```
-
-#### `POST /v1/audio/peaks/batch`
-
-Submit a batch of audio files and receive a ZIP with JSON peak files at multiple densities.
-
-**Content-Type:** `multipart/form-data`
-
-**Form Fields:**
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| audio | files[] | Yes | Up to 3 audio files |
-| manifest | string | Yes | JSON manifest describing variants |
-
-**Manifest Example:**
-```json
-{
-  "outputs": [
-    {
-      "file": "track1.mp3",
-      "variants": [
-        { "samplesPerMinute": 120 },
-        { "samplesPerMinute": 200, "name": "track1_dense.json" }
-      ]
-    }
-  ]
-}
-```
-
-**Response:** ZIP archive with paths like:
-```
-peaks/<baseName>/<variantName>.json
-```
-
-The ZIP also includes `manifest.json` (the request manifest) and, if `debug` is set, `debug.json`.
-
-**Example:**
-```bash
-curl -X POST "http://localhost:8080/v1/audio/peaks/batch?debug=info" \
-  -H "X-Api-Key: your-secret-key" \
-  -F "audio=@track1.mp3" \
-  -F "manifest=@audio-manifest.json" \
-  --output audio-peaks.zip
 ```
 
 #### `GET /v1/odesli`
@@ -354,10 +271,6 @@ curl -s "http://localhost:8080/v1/odesli?url=https://open.spotify.com/track/1GZH
 | AUDIOWAVEFORM_TIMEOUT_MS | No | 15000 | Timeout for audiowaveform in ms |
 | AUDIO_DURATION_TIMEOUT_MS | No | 5000 | Timeout for ffprobe duration lookup in ms |
 | LOG_LEVEL | No | info | Logging level: `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent` |
-| MAX_IMAGE_BATCH_FILES | No | 15 | Max number of images in a batch |
-| MAX_IMAGE_VARIANTS_PER_FILE | No | 12 | Max variants per image |
-| MAX_AUDIO_BATCH_FILES | No | 3 | Max number of audio files in a batch |
-| MAX_AUDIO_VARIANTS_PER_FILE | No | 4 | Max variants per audio file |
 | ODESLI_API_BASE_URL | No | https://api.song.link | Odesli API base URL (used without API key) |
 
 In production, the service refuses to start if `CORS_ALLOWED_ORIGINS` is empty.
@@ -537,22 +450,6 @@ Use your Astro API routes from the browser:
 ```bash
 curl -X POST "https://your-site.pages.dev/api/media/peaks?samples=500" \
   -F "audio=@song.mp3"
-```
-
-### Unzipping on Cloudflare Pages (Astro Build)
-
-Cloudflare Pages runs your Astro build in a Node environment. Use a lightweight unzip library like `unzipper` or `adm-zip` in your build scripts to extract the batch ZIPs.
-
-Example with `unzipper`:
-```ts
-import fs from 'node:fs';
-import { pipeline } from 'node:stream/promises';
-import unzipper from 'unzipper';
-
-await pipeline(
-  fs.createReadStream('images.zip'),
-  unzipper.Extract({ path: './public/images' })
-);
 ```
 
 ## Project Structure
