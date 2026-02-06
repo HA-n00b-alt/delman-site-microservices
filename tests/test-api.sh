@@ -77,7 +77,7 @@ if [[ "${image_status}" != "200" ]]; then
   echo "Image convert failed: ${image_status}" >&2
   exit 1
 fi
-grep -q "X-Debug-Info:" "${image_headers}" || { echo "Missing X-Debug-Info header"; exit 1; }
+grep -qi "X-Debug-Info:" "${image_headers}" || { echo "Missing X-Debug-Info header"; exit 1; }
 echo "OK: image convert"
 
 echo ""
@@ -118,6 +118,8 @@ image_batch_status=$(curl -s -o "${image_batch_zip}" -w "%{http_code}" \
   "${BASE_URL}/v1/image/batch?debug=info")
 if [[ "${image_batch_status}" != "200" ]]; then
   echo "Image batch failed: ${image_batch_status}" >&2
+  [[ -s "${image_batch_zip}" ]] && cat "${image_batch_zip}" | head -c 1000 >&2
+  echo "" >&2
   exit 1
 fi
 python - <<'PY'

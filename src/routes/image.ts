@@ -260,7 +260,10 @@ router.post(
 router.post(
   '/image/batch',
   mediaRateLimitMiddleware,
-  upload.array('images', env.MAX_IMAGE_BATCH_FILES),
+  upload.fields([
+    { name: 'images', maxCount: env.MAX_IMAGE_BATCH_FILES },
+    { name: 'manifest', maxCount: 1 },
+  ]),
   async (req: Request, res: Response): Promise<void> => {
     const requestId = crypto.randomUUID();
     const startedAt = Date.now();
@@ -268,7 +271,11 @@ router.post(
     const debugInfo = debugLevel ? createDebugInfo(debugLevel, requestId) : undefined;
 
     try {
-      const manifestRaw = req.body?.manifest;
+      const files = req.files as { images?: Express.Multer.File[]; manifest?: Express.Multer.File[] } | undefined;
+      const manifestFile = files?.manifest?.[0];
+      const manifestRaw = manifestFile
+        ? (manifestFile.buffer as Buffer).toString('utf8')
+        : (req.body?.manifest as string | undefined);
       if (!manifestRaw || typeof manifestRaw !== 'string') {
         res.status(400).json({ error: 'Missing manifest JSON in form field "manifest"', debug: debugInfo });
         return;
@@ -290,14 +297,14 @@ router.post(
       }
 
       const manifest = parsedManifest.data;
-      const files = (req.files || []) as Express.Multer.File[];
+      const imageFiles = files?.images ?? [];
 
-      if (files.length === 0) {
+      if (imageFiles.length === 0) {
         res.status(400).json({ error: 'No image files provided', debug: debugInfo });
         return;
       }
 
-      if (files.length > env.MAX_IMAGE_BATCH_FILES) {
+      if (imageFiles.length > env.MAX_IMAGE_BATCH_FILES) {
         res.status(400).json({
           error: `Too many files. Max ${env.MAX_IMAGE_BATCH_FILES}`,
           debug: debugInfo,
@@ -315,7 +322,7 @@ router.post(
         }
       }
 
-      const fileMap = new Map(files.map((f) => [f.originalname, f]));
+      const fileMap = new Map(imageFiles.map((f) => [f.originalname, f]));
       for (const item of manifest.outputs) {
         if (!fileMap.has(item.file)) {
           res.status(400).json({
