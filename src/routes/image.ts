@@ -17,7 +17,7 @@ const router = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB limit
+    fileSize: 20 * 1024 * 1024, // 20MB limit (reduces peak memory per request)
   },
 });
 
@@ -129,7 +129,8 @@ router.post(
 
       // Process image with sharp
       const processStart = Date.now();
-      let pipeline = sharp(req.file.buffer);
+      const limitInputPixels = 50 * 1024 * 1024; // 50MP - reject huge images that cause OOM
+      let pipeline = sharp(req.file.buffer, { limitInputPixels });
       recordStep(debugInfo, 'sharp_init', processStart);
 
       // Apply resize if dimensions are provided

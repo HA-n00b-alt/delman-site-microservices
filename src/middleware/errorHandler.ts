@@ -19,7 +19,7 @@ export const globalErrorHandler = (
   // Handle multer errors
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      res.status(400).json({ error: 'File too large. Maximum size is 50MB.' });
+      res.status(400).json({ error: 'File too large. Maximum size: 20MB (images), 50MB (audio).' });
       return;
     }
     res.status(400).json({ error: `Upload error: ${err.message}` });

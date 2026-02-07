@@ -1,5 +1,6 @@
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
+import sharp from 'sharp';
 
 import { env } from './config/env';
 import logger from './utils/logger';
@@ -13,6 +14,11 @@ import healthRouter from './routes/health';
 import imageRouter from './routes/image';
 import audioRouter from './routes/audio';
 import odesliRouter from './routes/odesli';
+
+// Disable libvips cache to prevent memory accumulation when processing many images
+// sequentially. The cache (default 50MB) grows across requests on long-running
+// instances and contributes to OOM after 8–9 photos with 1Gi limit.
+sharp.cache(false);
 
 const app = express();
 
