@@ -297,29 +297,41 @@ docker run --rm -p 8080:8080 \
 
 ## Install on GCP (Cloud Run Only)
 
-### 1) GCP Setup
+Production runs on GCP project **`delman-site`** (`579865585076`), region **`europe-west3`**.
+
+| Resource | Value |
+|----------|-------|
+| Cloud Run service | `media-service` |
+| Production URL | `https://media-service-579865585076.europe-west3.run.app` |
+| Artifact Registry | `europe-west3-docker.pkg.dev/delman-site/media-service/media-service` |
+| Deploy SA | `github-actions@delman-site.iam.gserviceaccount.com` |
+
+### 1) GCP Setup (one-time)
 
 1. Create an Artifact Registry repository:
 ```bash
 gcloud artifacts repositories create media-service \
   --repository-format=docker \
-  --location=europe-west1
+  --location=europe-west3 \
+  --project=delman-site
 ```
 
 2. Create a Service Account with required roles:
 ```bash
-gcloud iam service-accounts create github-actions
+gcloud iam service-accounts create github-actions \
+  --project=delman-site \
+  --display-name="GitHub Actions deploy"
 
-gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-  --member="serviceAccount:github-actions@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+gcloud projects add-iam-policy-binding delman-site \
+  --member="serviceAccount:github-actions@delman-site.iam.gserviceaccount.com" \
   --role="roles/run.admin"
 
-gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-  --member="serviceAccount:github-actions@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+gcloud projects add-iam-policy-binding delman-site \
+  --member="serviceAccount:github-actions@delman-site.iam.gserviceaccount.com" \
   --role="roles/artifactregistry.writer"
 
-gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-  --member="serviceAccount:github-actions@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+gcloud projects add-iam-policy-binding delman-site \
+  --member="serviceAccount:github-actions@delman-site.iam.gserviceaccount.com" \
   --role="roles/iam.serviceAccountUser"
 ```
 
@@ -327,11 +339,11 @@ gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
 
 ### 2) Configure GitHub Actions Secrets
 
-Set these GitHub secrets:
+Set these GitHub secrets on this repo:
 
 | Secret | Description |
 |--------|-------------|
-| `GCP_PROJECT_ID` | Your Google Cloud project ID |
+| `GCP_PROJECT_ID` | `delman-site` |
 | `GCP_SA_KEY` | Service Account JSON key with Cloud Run and Artifact Registry permissions |
 | `SERVICE_API_KEY` | API key for the service authentication |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated allowed origins for your Astro app |
@@ -340,19 +352,19 @@ Set these GitHub secrets:
 
 Push to `main`. The workflow in `.github/workflows/deploy.yml` builds the Docker image and deploys to Cloud Run.
 
-- **Redeploy:** Push to `main` (or trigger the workflow). The built image includes HEIC/HEVC support (Trixie + sharp 0.33.x + system libvips). No further code changes are required for this to be final.
+- **Redeploy:** Push to `main` (or trigger the workflow).
 - **After deploy:** Run `./tests/test-api.sh` with `BASE_URL` and `SERVICE_API_KEY` to smoke-test the live service.
 
 ### 4) Verify
 
 ```bash
-curl -s https://YOUR_CLOUD_RUN_URL/health
+curl -s https://media-service-579865585076.europe-west3.run.app/health
 ```
 
 Optional full smoke test against the deployed URL:
 
 ```bash
-BASE_URL=https://YOUR_CLOUD_RUN_URL SERVICE_API_KEY=your-key ./tests/test-api.sh
+BASE_URL=https://media-service-579865585076.europe-west3.run.app SERVICE_API_KEY=your-key ./tests/test-api.sh
 ```
 
 ## Consume Securely from Astro on Cloudflare Pages
@@ -386,7 +398,7 @@ import type { APIRoute } from 'astro';
 
 export const POST: APIRoute = async ({ request }) => {
   const url = new URL(request.url);
-  const target = new URL('https://YOUR_CLOUD_RUN_URL/v1/image/convert');
+  const target = new URL('https://media-service-579865585076.europe-west3.run.app/v1/image/convert');
   target.search = url.search;
 
   const res = await fetch(target, {
@@ -412,7 +424,7 @@ import type { APIRoute } from 'astro';
 
 export const POST: APIRoute = async ({ request }) => {
   const url = new URL(request.url);
-  const target = new URL('https://YOUR_CLOUD_RUN_URL/v1/audio/peaks');
+  const target = new URL('https://media-service-579865585076.europe-west3.run.app/v1/audio/peaks');
   target.search = url.search;
 
   const res = await fetch(target, {

@@ -1,5 +1,5 @@
 {
-  "name": "delman-site-microservices",
+  "name": "media-service",
   "version": "1.0.0",
   "description": "Media processing microservice for image conversion and audio waveform extraction",
   "main": "dist/index.js",
