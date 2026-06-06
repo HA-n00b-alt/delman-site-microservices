@@ -29,14 +29,18 @@ describe('Health Endpoint', () => {
   it('GET /health should return health status', async () => {
     const response = await request(server).get('/health');
 
-    // Status can be 200 (ok) or 503 (degraded) depending on environment
-    expect([200, 503]).toContain(response.status);
-    expect(response.body).toHaveProperty('status');
-    expect(['ok', 'degraded']).toContain(response.body.status);
     expect(response.body).toHaveProperty('checks');
     expect(response.body).toHaveProperty('uptime');
-    expect(response.body.checks).toHaveProperty('sharp');
+    expect(response.body.checks.sharp).toBe(true);
     expect(response.body.checks).toHaveProperty('audiowaveform');
+
+    if (response.body.checks.audiowaveform) {
+      expect(response.status).toBe(200);
+      expect(response.body.status).toBe('ok');
+    } else {
+      expect(response.status).toBe(503);
+      expect(response.body.status).toBe('degraded');
+    }
   });
 
   it('GET /health should not require API key', async () => {

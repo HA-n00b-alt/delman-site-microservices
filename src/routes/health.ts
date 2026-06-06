@@ -7,6 +7,12 @@ import logger from '../utils/logger';
 const router = Router();
 const startTime = Date.now();
 
+/** Minimal 1×1 PNG — valid input for sharp metadata probe */
+const MINIMAL_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64'
+);
+
 /**
  * @openapi
  * /health:
@@ -52,16 +58,10 @@ router.get('/health', async (_req: Request, res: Response) => {
     logger.warn({ err }, 'audiowaveform check failed');
   }
 
-  // Check sharp library
+  // Check sharp library with a minimal valid PNG (1-byte buffers are not valid image input)
   try {
-    await sharp(Buffer.alloc(1, 0))
-      .metadata()
-      .then(() => {
-        checks.sharp = true;
-      })
-      .catch(() => {
-        checks.sharp = false;
-      });
+    await sharp(MINIMAL_PNG).metadata();
+    checks.sharp = true;
   } catch (err) {
     logger.warn({ err }, 'sharp check failed');
   }

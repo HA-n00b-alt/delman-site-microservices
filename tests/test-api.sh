@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DATA_DIR="${ROOT_DIR}/tests/data"
 ENV_FILE="${ROOT_DIR}/.env"
 
-BASE_URL="${BASE_URL:-https://media-service-129125380439.europe-west3.run.app}"
+BASE_URL="${BASE_URL:-https://media-service-579865585076.europe-west3.run.app}"
 
 if [[ -f "${ENV_FILE}" ]]; then
   # shellcheck disable=SC1090
@@ -56,7 +56,7 @@ echo ""
 echo "2) Health check (no auth)"
 health_status=$(curl -s -o "${TMP_DIR}/health.json" -w "%{http_code}" \
   "${BASE_URL}/health")
-if [[ "${health_status}" != "200" && "${health_status}" != "503" ]]; then
+if [[ "${health_status}" != "200" ]]; then
   echo "Unexpected health status: ${health_status}" >&2
   cat "${TMP_DIR}/health.json"
   exit 1
