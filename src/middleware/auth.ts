@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { env } from '../config/env';
 import logger from '../utils/logger';
 
-const SERVICE_API_KEY = process.env.SERVICE_API_KEY;
+const SERVICE_API_KEY = env.SERVICE_API_KEY;
 
 if (!SERVICE_API_KEY) {
   logger.error('SERVICE_API_KEY environment variable is not set');

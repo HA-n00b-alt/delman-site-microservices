@@ -14,7 +14,15 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:env-contract": "node scripts/check-env-contract.mjs",
+    "check:api-routes": "node scripts/check-api-routes.mjs",
+    "check:runtime-console": "node scripts/check-runtime-console.mjs",
+    "check:csp-cloudflare-jsd-filter": "node scripts/check-csp-cloudflare-jsd-filter.mjs",
+    "check:strict": "eslint . --max-warnings 0",
+    "verify": "npm run check:env-contract && npm run check:api-routes && npm run check:runtime-console && npm run check:csp-cloudflare-jsd-filter && npm run typecheck && npm run check:strict && npm run test",
+    "ci": "npm run verify",
+    "deploy:production": "node scripts/deploy-production.js"
   },
   "keywords": [],
   "author": "",

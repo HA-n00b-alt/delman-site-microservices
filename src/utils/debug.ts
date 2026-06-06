@@ -1,4 +1,4 @@
-import { DebugInfo, DebugLevel, DEBUG_LEVELS, DebugStep } from '../types';
+import { DebugInfo, DebugLevel, DEBUG_LEVELS } from '../types';
 
 export function parseDebugLevel(value?: string): DebugLevel | undefined {
   if (!value) return undefined;

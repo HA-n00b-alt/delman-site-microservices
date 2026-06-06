@@ -1,5 +1,4 @@
 import swaggerJsdoc from 'swagger-jsdoc';
-import { SUPPORTED_IMAGE_FORMATS, SUPPORTED_AUDIO_FORMATS, VALID_FIT_OPTIONS, DEBUG_LEVELS } from '../types';
 
 const options: swaggerJsdoc.Options = {
   definition: {

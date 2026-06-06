@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
+import { env } from '../config/env';
 import logger from '../utils/logger';
 
 export const notFoundHandler = (_req: Request, res: Response): void => {
@@ -14,7 +15,7 @@ export const globalErrorHandler = (
 ): void => {
   logger.error({ err: err.message, stack: err.stack }, 'Unhandled error');
   const debugRequested = typeof req.query?.debug === 'string';
-  const includeDetails = process.env.NODE_ENV !== 'production' || debugRequested;
+  const includeDetails = env.NODE_ENV !== 'production' || debugRequested;
 
   // Handle multer errors
   if (err instanceof multer.MulterError) {

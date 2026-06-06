@@ -304,9 +304,70 @@ Production runs on GCP project **`delman-site`** (`579865585076`), region **`eur
 | Cloud Run service | `media-service` |
 | Production URL | `https://media-service-579865585076.europe-west3.run.app` |
 | Artifact Registry | `europe-west3-docker.pkg.dev/delman-site/media-service/media-service` |
-| Deploy SA | `github-actions@delman-site.iam.gserviceaccount.com` |
+| Deploy | Local orchestrator (`npm run deploy:production`) |
 
-### 1) GCP Setup (one-time)
+### Prerequisites
+
+- Node.js 20+, npm
+- [Google Cloud SDK](https://cloud.google.com/sdk) authenticated locally (`gcloud auth login`)
+- Permissions on `delman-site` for Cloud Build and Cloud Run
+- Local env files:
+  - Copy `.env.example` → `.env`
+  - Add secrets to `.env` or `.secrets.env` (`SERVICE_API_KEY`, `CORS_ALLOWED_ORIGINS`)
+  - **Local files are the source of truth.** Deploy fails if a variable exists on Cloud Run but is missing locally, or if Cloud Run has extra undeclared variables.
+
+### Local CI (`npm run verify`)
+
+GitHub Actions is disabled. Quality gates run locally via the standard verify suite defined in `PIPELINES-LOGGING-ANALYTICS-STANDARDS.md`:
+
+```bash
+npm run verify
+# alias:
+npm run ci
+```
+
+This runs, in order:
+
+```bash
+npm run check:env-contract
+npm run check:api-routes
+npm run check:runtime-console
+npm run check:csp-cloudflare-jsd-filter   # N/A skip for Cloud Run
+npm run typecheck
+npm run check:strict
+npm run test
+```
+
+### Deploy to production
+
+```bash
+# Verify only (no GCP deploy)
+npm run deploy:production -- --dry-run
+
+# Build via Cloud Build and deploy to Cloud Run
+npm run deploy:production
+
+# Skip the git prompt entirely
+npm run deploy:production -- --no-git
+
+# Commit/push without prompting
+npm run deploy:production -- --yes-git
+```
+
+The orchestrator in `scripts/deploy-production.js` follows the standard sequence:
+
+1. Run verify
+2. Read deployment manifest (local/R2 when configured)
+3. Skip DB migrations (not applicable)
+4. Load secrets from `.env` / `.secrets.env` and **audit drift vs Cloud Run** (remote-only or orphan vars block deploy)
+5. Skip accessory components
+6. `gcloud builds submit` + `gcloud run deploy`
+7. Write `deploy-manifest.json`
+8. Prompt to commit + push `deploy-manifest.json` (`--no-git` to skip, `--yes-git` to auto-confirm)
+
+Configuration defaults live in `deploy.config.json`. Override with `GCP_PROJECT_ID` / `GCP_REGION` env vars if needed.
+
+### One-time GCP setup
 
 1. Create an Artifact Registry repository:
 ```bash
@@ -316,46 +377,13 @@ gcloud artifacts repositories create media-service \
   --project=delman-site
 ```
 
-2. Create a Service Account with required roles:
-```bash
-gcloud iam service-accounts create github-actions \
-  --project=delman-site \
-  --display-name="GitHub Actions deploy"
+2. Ensure your user account (or deploy SA) has:
+   - `roles/run.admin`
+   - `roles/cloudbuild.builds.editor` (or Cloud Build submit permissions)
+   - `roles/artifactregistry.writer`
+   - `roles/iam.serviceAccountUser`
 
-gcloud projects add-iam-policy-binding delman-site \
-  --member="serviceAccount:github-actions@delman-site.iam.gserviceaccount.com" \
-  --role="roles/run.admin"
-
-gcloud projects add-iam-policy-binding delman-site \
-  --member="serviceAccount:github-actions@delman-site.iam.gserviceaccount.com" \
-  --role="roles/artifactregistry.writer"
-
-gcloud projects add-iam-policy-binding delman-site \
-  --member="serviceAccount:github-actions@delman-site.iam.gserviceaccount.com" \
-  --role="roles/iam.serviceAccountUser"
-```
-
-3. Generate and download the Service Account key, then add it as `GCP_SA_KEY` secret in GitHub.
-
-### 2) Configure GitHub Actions Secrets
-
-Set these GitHub secrets on this repo:
-
-| Secret | Description |
-|--------|-------------|
-| `GCP_PROJECT_ID` | `delman-site` |
-| `GCP_SA_KEY` | Service Account JSON key with Cloud Run and Artifact Registry permissions |
-| `SERVICE_API_KEY` | API key for the service authentication |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed origins for your Astro app |
-
-### 3) Deploy (Automated)
-
-Push to `main`. The workflow in `.github/workflows/deploy.yml` builds the Docker image and deploys to Cloud Run.
-
-- **Redeploy:** Push to `main` (or trigger the workflow).
-- **After deploy:** Run `./tests/test-api.sh` with `BASE_URL` and `SERVICE_API_KEY` to smoke-test the live service.
-
-### 4) Verify
+### Verify deployed service
 
 ```bash
 curl -s https://media-service-579865585076.europe-west3.run.app/health
@@ -501,7 +529,17 @@ curl -X POST "https://your-site.pages.dev/api/media/peaks?samples=500" \
 │       ├── debug.test.ts     # Debug encoding/parsing tests
 │       ├── env.test.ts       # Env validation tests
 │       └── types.test.ts     # Zod schema tests
-├── dist/                     # Compiled JavaScript (generated)
+├── scripts/
+│   ├── deploy-production.js      # Local deploy orchestrator
+│   ├── check-env-contract.mjs    # Verify env access contract
+│   ├── check-api-routes.mjs      # Verify route wiring
+│   ├── check-runtime-console.mjs # Ban console.* in runtime code
+│   ├── check-csp-cloudflare-jsd-filter.mjs
+│   └── lib/
+│       ├── load-dotenv.mjs
+│       └── run.mjs
+├── deploy.config.json            # GCP deploy defaults
+├── PIPELINES-LOGGING-ANALYTICS-STANDARDS.md
 ├── Dockerfile                # Container configuration
 ├── package.json
 ├── tsconfig.json

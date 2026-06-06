@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .env
+.secrets.env
+.deploy-env.yaml
 *.log
 .DS_Store
 secrets/

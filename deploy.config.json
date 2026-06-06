@@ -1,0 +1,14 @@
+{
+  "gcpProjectId": "delman-site",
+  "region": "europe-west3",
+  "serviceName": "media-service",
+  "repository": "media-service",
+  "imageName": "media-service",
+  "memory": "1Gi",
+  "cpu": "1",
+  "maxInstances": 5,
+  "deployEnvVars": [
+    "SERVICE_API_KEY",
+    "CORS_ALLOWED_ORIGINS"
+  ]
+}
