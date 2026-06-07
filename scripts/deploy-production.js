@@ -155,6 +155,11 @@ async function main() {
   const gitShaFull = gitCapture(['rev-parse', 'HEAD']);
   const gitSha = gitCapture(['rev-parse', '--short', 'HEAD']);
   const imageTag = `${imageUri}:${gitShaFull}`;
+  const preDeployDirty = gitCapture(['status', '--porcelain']).trim();
+  if (preDeployDirty) {
+    console.log('Deploying working tree with uncommitted changes (step 8 can sync them to git):');
+    for (const line of preDeployDirty.split('\n')) console.log(`  ${line}`);
+  }
 
   run('gcloud', ['config', 'set', 'project', projectId], { label: `gcloud config set project ${projectId}` });
   run('gcloud', [
@@ -212,25 +217,30 @@ async function main() {
   if (skipGit) {
     console.log('Skipped git commit/push (--no-git).');
   } else {
-    run('git', ['add', 'deploy-manifest.json']);
-    const status = gitCapture(['status', '--porcelain', 'deploy-manifest.json']);
+    run('git', ['add', '-A']);
+    const status = gitCapture(['status', '--porcelain']);
     if (!status) {
-      console.log('No manifest changes to commit.');
+      console.log('No changes to commit.');
     } else {
-      const shouldSync = yesGit || await confirm('Commit and push deploy-manifest.json to git? (source code is not included)');
+      console.log('Changes to commit and push:');
+      for (const line of status.split('\n')) console.log(`  ${line}`);
+
+      const shouldSync = yesGit || await confirm('Commit and push all deployed changes to git?');
       if (!shouldSync) {
         console.log('Skipped git commit/push.');
       } else {
-        run('git', ['commit', '-m', `chore(deploy): record production deploy ${gitSha}`]);
+        run('git', ['commit', '-m', `chore(deploy): sync production deploy ${gitSha}`]);
         run('git', ['push']);
+        const syncSha = gitCapture(['rev-parse', '--short', 'HEAD']);
+        console.log(`GitHub synced at ${syncSha}.`);
       }
     }
   }
 
-  const dirty = gitCapture(['status', '--porcelain']).trim();
-  if (dirty) {
-    console.warn('\nWARN: Uncommitted local changes remain (deploy only records deploy-manifest.json):');
-    for (const line of dirty.split('\n')) console.warn(`  ${line}`);
+  const remainingDirty = gitCapture(['status', '--porcelain']).trim();
+  if (remainingDirty) {
+    console.warn('\nWARN: Uncommitted local changes remain after deploy:');
+    for (const line of remainingDirty.split('\n')) console.warn(`  ${line}`);
   }
 
   console.log(`\nDeploy complete: ${serviceUrl}`);

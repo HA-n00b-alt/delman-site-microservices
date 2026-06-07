@@ -2,6 +2,13 @@
   "service": "media-service",
   "deployments": [
     {
+      "deployedAt": "2026-06-07T07:17:58.475Z",
+      "gitSha": "ff3b5b5",
+      "image": "europe-west3-docker.pkg.dev/delman-site/media-service/media-service:ff3b5b5fc00a8aa4d1c81fd98be925faaea0676b",
+      "serviceUrl": "https://media-service-7jlgdaerna-ey.a.run.app",
+      "sourceHash": "8592c0cb895efd547a0eba79f33eec7fdb084754015d59172d79337406760cf7"
+    },
+    {
       "deployedAt": "2026-06-07T06:53:55.812Z",
       "gitSha": "f92fab8",
       "image": "europe-west3-docker.pkg.dev/delman-site/media-service/media-service:f92fab8f38f4e23aba6cbddeff837a4d5fb25f3c",

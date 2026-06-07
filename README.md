@@ -363,7 +363,7 @@ The orchestrator in `scripts/deploy-production.js` follows the standard sequence
 5. Skip accessory components
 6. `gcloud builds submit` + `gcloud run deploy`
 7. Write `deploy-manifest.json`
-8. Prompt to commit + push `deploy-manifest.json` (`--no-git` to skip, `--yes-git` to auto-confirm)
+8. Prompt to commit + push **all deployed changes** (`git add -A`, rispetta `.gitignore`; `--no-git` per saltare, `--yes-git` per auto-confermare)
 
 Configuration defaults live in `deploy.config.json`. Override with `GCP_PROJECT_ID` / `GCP_REGION` env vars if needed.
 
