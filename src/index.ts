@@ -22,6 +22,12 @@ sharp.cache(false);
 
 const app = express();
 
+// Cloud Run sits behind Google's load balancer and sets X-Forwarded-For.
+// Required for express-rate-limit to derive req.ip correctly.
+if (env.NODE_ENV !== 'test') {
+  app.set('trust proxy', 1);
+}
+
 if (!env.CORS_ALLOWED_ORIGINS) {
   if (env.NODE_ENV === 'production') {
     logger.error('CORS_ALLOWED_ORIGINS is not set. Refusing to start in production.');

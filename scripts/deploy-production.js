@@ -217,7 +217,7 @@ async function main() {
     if (!status) {
       console.log('No manifest changes to commit.');
     } else {
-      const shouldSync = yesGit || await confirm('Commit and push deploy-manifest.json to git?');
+      const shouldSync = yesGit || await confirm('Commit and push deploy-manifest.json to git? (source code is not included)');
       if (!shouldSync) {
         console.log('Skipped git commit/push.');
       } else {
@@ -225,6 +225,12 @@ async function main() {
         run('git', ['push']);
       }
     }
+  }
+
+  const dirty = gitCapture(['status', '--porcelain']).trim();
+  if (dirty) {
+    console.warn('\nWARN: Uncommitted local changes remain (deploy only records deploy-manifest.json):');
+    for (const line of dirty.split('\n')) console.warn(`  ${line}`);
   }
 
   console.log(`\nDeploy complete: ${serviceUrl}`);
